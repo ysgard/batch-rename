@@ -39,31 +39,28 @@ import (
 	"fmt"
 	"os"
 	//"ioutil" // For ReadDir
+	"path/filepath"
 	"regexp"
 )
 
+// Why do I have to use "MustCompile"?  Why does a simple Compile raise an error?
 var defaultFileMatch = regexp.MustCompile("^([a-zA-Z0-9\\s\\._-]+)$")
 
+// Just return the concatenation of the prefix and the filename.
 func prefixName(name, prefix string) string {
 	return prefix + name
+}
+
+// Add a suffix to a filename, being careful to remove and re-add the extension
+// on it (if it exists).
+func suffixName(name, suffix string) string {
+
 }
 
 func main() {
 	if defaultFileMatch == nil {
 		fmt.Fprintf(os.Stderr, "Invalid regexp object!\n")
 		os.Exit(1)
-	}
-	fname1 := "This is a valid filename.txt"
-	fname2 := "This@@@@isnotvalid.txt"
-	if defaultFileMatch.MatchString(fname1) {
-		fmt.Fprintf(os.Stdout, "Properly matched!\n")
-	} else {
-		fmt.Fprintf(os.Stdout, "Should match, but doesn't!\n")
-	}
-	if !defaultFileMatch.MatchString(fname2) {
-		fmt.Fprintf(os.Stdout, "Properly doesn't match!\n")
-	} else {
-		fmt.Fprintf(os.Stdout, "Matches, but shouldn't!\n")
 	}
 
 }
