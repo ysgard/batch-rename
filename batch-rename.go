@@ -13,15 +13,18 @@ import (
 	"fmt"
 	"os"
 	//"ioutil" // For ReadDir
-	//"path/filepath"
+	"path/filepath"
 	"regexp"
+	//"github.com/jteeuwen/go-pkg-optarg" optarg
+	"errors"
+	"strings"
 )
 
 // Why do I have to use "MustCompile"?  Why does a simple Compile raise an error?
 var defaultFileMatch = regexp.MustCompile(`^([a-zA-Z0-9\s\._-]+)$`)
 
 var usageString = `
-  batch-rename [opts]
+  batch-rename (-p <prefix>|-s <suffix>|-e <name>) [-x <regex>] [-t <target_dir>] -[crn] -[l|u]
 
     batch-rename will construct a list of all files that match a given regex,
     or all files in the directory, and rename/copy them to a matching file 
@@ -58,10 +61,10 @@ var usageString = `
         Search for matching files in subdirectories.
 
       --lowercase|-l          
-        Lowercase the final rename.
+        Lowercase the final rename. (Can't be used with '-u')
 
       --uppercase|-u          
-        Uppercase the final rename.
+        Uppercase the final rename. (Can't be used with '-l')
 
       --dry-run|-n            
         List files, but don't copy/rename
@@ -85,9 +88,17 @@ func prefixName(name, prefix string) string {
 
 // Add a suffix to a filename, being careful to remove and re-add the extension
 // on it (if it exists).
-// func suffixName(name, suffix string) string {
+func suffixName(name, suffix string) string {
+	ext := filepath.Ext(name)
+	raw_base := strings.TrimSuffix(filepath.Base(name), ext)
+	return raw_base + suffix + ext
+}
 
-// }
+// enumerated files take the form <name>_<dddd>.<ext>
+func enumerateName(name, newname string, count int) string {
+	ext := filepath.Ext(name)
+	return fmt.Sprintf("%s_%04d.%s", newname, count, ext)
+}
 
 // Call before parsing flags
 func flagInit() {
@@ -134,10 +145,66 @@ func flagInit() {
 
 }
 
+func usage(msg string) {
+	fmt.Fprintf(os.Stderr, msg+"\n")
+	fmt.Fprintf(os.Stderr, usageString)
+	os.Exit(0)
+}
+
+// Build a list of all files that match the regex, and then walk
+// them and rename them as we go.
+func processFiles() error {
+
+	var targetDir string
+
+	if targetArg != "" {
+		targetDir = targetArg // If target specified, use it
+	} else {
+		var err error
+		targetDir, err = os.Getwd()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Could not determine current directory!  Please specify target directory with -t.")
+			return err
+		}
+	}
+
+	// Make sure the target directory is a valid one
+	if dinfo, err := os.Lstat(targetDir); err != nil || dinfo.IsDir() == false {
+		err = errors.New(fmt.Sprintf("Target directory %s is not a directory?\n", targetDir))
+		fmt.Fprintf(os.Stderr, err.Error())
+		return err
+	}
+
+	fmt.Fprintf(os.Stderr, "Target directory is : %s\n", targetDir)
+
+	// Process each file.
+
+	return nil
+
+}
+
+// func processDir(dirname) error {
+
+// }
+
 func main() {
 
 	// Get the command-line arguments
 	flagInit()
+
+	// Sanity check - no upper with lower
+	if lowerArg == true && upperArg == true {
+		usage("Cannot combine -u (uppercase) and -l (lowercase) flags")
+	}
+
+	// We require at least one of 'prefix', 'suffix' or 'enumerate', otherwise
+	// we don't know how to rename.
+	if prefixArg == "" && suffixArg == "" && enumerateArg == "" {
+		usage("Specify one of -p <prefix>, -s <suffix> or -e <enumerate>")
+	}
+
+	// Some people like to bracket a regex with '/'.  Strip these out, if found
+	regexArg = strings.TrimLeft(strings.TrimRight(regexArg, "/"), "/")
 
 	// Print out the values of each argument
 	fmt.Fprintf(os.Stdout, "regexArg: "+regexArg+"\n")
@@ -150,4 +217,7 @@ func main() {
 	fmt.Fprintf(os.Stdout, "lowerArg: %b\n", lowerArg)
 	fmt.Fprintf(os.Stdout, "upperArg: %b\n", upperArg)
 	fmt.Fprintf(os.Stdout, "dryrunArg: %b\n", dryrunArg)
+
+	processFiles()
+
 }
