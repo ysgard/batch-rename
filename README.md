@@ -1,6 +1,5 @@
-*WARNING: In Development!*
-
-=batch-rename=
+batch-rename
+============
 
 A small program to handle batch renames and copies.
 
@@ -9,9 +8,9 @@ an excuse to stretch my Go programming muscles and make something that I'm more
 likely to use.
 
 
-Syntax:
+**Syntax**:
 
-	batch-rename [opts]
+    batch-rename [opts]
 
     batch-rename will construct a list of all files that match a given regex,
     or all files in the directory, and rename/copy them to a matching file that is
