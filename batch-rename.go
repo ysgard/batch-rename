@@ -31,46 +31,46 @@ var usageString = `
     or all files in the directory, and rename/copy them to a matching file 
     that is modified according to the specified prefix or suffix.
 
-    For example, 'batch-rename' --prefix to_sort_ --regex "/.png$/"' will 
+    For example, 'batch-rename' -prefix to_sort_ -regex "/.png$/"' will 
     rename all files matching .png in the current  directory to 
     'to_sort_<oldname>.png'.
 
     Arguments:
       
-      --regex|-x <regex>      
+      -regex|-x <regex>      
         A regular expression for matching files.  You can use "/<regex>/" or 
         "<regex>", but the double-quotes are necessary.
       
-      --prefix|-p <prefix>    
+      -prefix|-p <prefix>    
         Renames matching files to have the specified prefix.
       
-      --suffix|-s <suffix>    
+      -suffix|-s <suffix>    
         Renames matching files to have the specified suffix.
       
-      --enumerate|-e <name>   
+      -enumerate|-e <name>   
         Rename matching files to <name>_<num>, where <num> is 
         incremented from 000.
 
-      --target-dir|-t <path>  
+      -target-dir|-t <path>  
         The directory within which we rename/copy.  Default is the current 
         working directory.
 
-      --copy|-c               
+      -copy|-c               
         Copy instead of rename.
 
-      --recurse|-r            
+      -recurse|-r            
         Search for matching files in subdirectories.
 
-      --lowercase|-l          
+      -lowercase|-l          
         Lowercase the final rename. (Can't be used with '-u')
 
-      --uppercase|-u          
+      -uppercase|-u          
         Uppercase the final rename. (Can't be used with '-l')
 
-      --dry-run|-n            
+      -dry-run|-n            
         List files, but don't copy/rename
 
-      --force|-for 
+      -force|-for 
         If the file exists, overwrite.  Default is to not copy/rename
         if the target file already exists.
       }
