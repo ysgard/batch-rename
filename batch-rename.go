@@ -196,7 +196,7 @@ func processFiles() (int, error) {
 
 func processDir(dirname string) (int, error) {
 
-	var count int
+	var count, counter int // count is how many files were successfully counted, counter is for enum
 	var return_msg string
 	var return_err error
 	dp, open_err := os.Open(dirname)
@@ -220,11 +220,12 @@ func processDir(dirname string) (int, error) {
 		} else if f.IsDir() == true && recurseArg == false {
 			continue
 		} else {
-			file_count, file_err := processFile(filepath.Join(dirname, f.Name()), count)
+			file_count, file_err := processFile(filepath.Join(dirname, f.Name()), counter)
 			if file_err != nil {
 				return_msg += file_err.Error() + "\n"
 			}
 			count += file_count
+			counter++
 
 		}
 	}
@@ -284,7 +285,7 @@ func processFile(name string, currentCount int) (int, error) {
 	} else {
 		if copyArg == true {
 
-			copyFile, openFileErr := os.Open(newName)
+			copyFile, openFileErr := os.Create(newName)
 			if openFileErr != nil {
 				return 0, openFileErr
 			}
