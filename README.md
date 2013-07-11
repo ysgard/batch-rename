@@ -4,6 +4,9 @@
 
 A small program to handle batch renames and copies.
 
+[BUG] Currently, need to use the -<longarg> option instead of --<longarg>, because,
+weirdly, the flags package doesn't provide the latter option.  
+
 Syntax:
 
 	batch-rename [opts]
@@ -31,3 +34,4 @@ Syntax:
       --lowercase|-l          lowercase the final rename
       --uppercase|-u          uppercase the final rename
       --dry-run|-n            List files, but don't copy/rename
+      --force|-f              Override files, if they exist.
