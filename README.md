@@ -4,6 +4,10 @@
 
 A small program to handle batch renames and copies.
 
+Yes, I know that [GNU program here] exists and does this already.  This was more
+an excuse to stretch my Go programming muscles and make something that I'm more
+likely to use.
+
 [BUG] Currently, need to use the -<longarg> option instead of --<longarg>, because,
 weirdly, the flags package doesn't provide the latter option.  
 
