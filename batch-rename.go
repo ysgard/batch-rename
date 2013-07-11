@@ -17,6 +17,7 @@ import (
 	"regexp"
 	//"github.com/jteeuwen/go-pkg-optarg" optarg
 	"errors"
+	"io" // Needed for file copy
 	"strings"
 )
 
@@ -68,9 +69,15 @@ var usageString = `
 
       --dry-run|-n            
         List files, but don't copy/rename
+
+      --force|-for 
+        If the file exists, overwrite.  Default is to not copy/rename
+        if the target file already exists.
+      }
 `
 
 var regexArg string
+var fileRegex *regexp.Regexp
 var prefixArg string
 var suffixArg string
 var enumerateArg string
@@ -80,6 +87,7 @@ var recurseArg bool
 var lowerArg bool
 var upperArg bool
 var dryrunArg bool
+var forceArg bool
 
 // Just return the concatenation of the prefix and the filename.
 func prefixName(name, prefix string) string {
@@ -118,6 +126,7 @@ func flagInit() {
 		lowercase_default = false
 		uppercase_default = false
 		dryrun_default    = false
+		force_default     = false
 	)
 
 	flag.StringVar(&regexArg, "regex", regex_default, "")
@@ -140,6 +149,8 @@ func flagInit() {
 	flag.BoolVar(&upperArg, "u", uppercase_default, "")
 	flag.BoolVar(&dryrunArg, "dry-run", dryrun_default, "")
 	flag.BoolVar(&dryrunArg, "n", dryrun_default, "")
+	flag.BoolVar(&forceArg, "f", force_default, "")
+	flag.BoolVar(&forceArg, "force", force_default, "")
 
 	flag.Parse()
 
@@ -153,7 +164,7 @@ func usage(msg string) {
 
 // Build a list of all files that match the regex, and then walk
 // them and rename them as we go.
-func processFiles() error {
+func processFiles() (int, error) {
 
 	var targetDir string
 
@@ -164,7 +175,7 @@ func processFiles() error {
 		targetDir, err = os.Getwd()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Could not determine current directory!  Please specify target directory with -t.")
-			return err
+			return 0, err
 		}
 	}
 
@@ -172,20 +183,128 @@ func processFiles() error {
 	if dinfo, err := os.Lstat(targetDir); err != nil || dinfo.IsDir() == false {
 		err = errors.New(fmt.Sprintf("Target directory %s is not a directory?\n", targetDir))
 		fmt.Fprintf(os.Stderr, err.Error())
-		return err
+		return 0, err
 	}
 
 	fmt.Fprintf(os.Stderr, "Target directory is : %s\n", targetDir)
 
-	// Process each file.
-
-	return nil
+	// Process each file & return the results
+	fCount, err := processDir(targetDir)
+	return fCount, err
 
 }
 
-// func processDir(dirname) error {
+func processDir(dirname string) (int, error) {
 
-// }
+	var count int
+	var return_msg string
+	var return_err error
+	dp, open_err := os.Open(dirname)
+	if open_err != nil {
+		fmt.Fprintf(os.Stderr, open_err.Error())
+		return 0, open_err
+	}
+	defer dp.Close()
+
+	files, read_err := dp.Readdir(0)
+	if read_err != nil {
+		return_msg += read_err.Error() + "\n"
+	}
+	for _, f := range files {
+		if f.IsDir() == true && recurseArg == true {
+			dir_count, dir_err := processDir(filepath.Join(dirname, f.Name()))
+			if dir_err != nil {
+				return_msg += dir_err.Error() + "\n"
+			}
+			count += dir_count
+		} else if f.IsDir() == true && recurseArg == false {
+			continue
+		} else {
+			file_count, file_err := processFile(filepath.Join(dirname, f.Name()), count)
+			if file_err != nil {
+				return_msg += file_err.Error() + "\n"
+			}
+			count += file_count
+
+		}
+	}
+	if return_msg == "" {
+		return_err = nil
+	} else {
+		return_err = errors.New(return_msg)
+	}
+	return count, return_err
+}
+
+// Rename/Copy a file based on global arguments.
+func processFile(name string, currentCount int) (int, error) {
+
+	base := filepath.Base(name)
+	path := filepath.Dir(name)
+	if fileRegex != nil {
+		// Check to see whether file matches, exit if it doesn't
+		if fileRegex.MatchString(base) == false {
+			return 0, nil
+		}
+	}
+
+	// Order is - enumerate, suffix, prefix.
+	var newName, outputMsg string
+	ext := filepath.Ext(name)
+	newName = strings.TrimSuffix(filepath.Base(name), ext)
+	if enumerateArg != "" {
+		newName = fmt.Sprintf("%s_%04d", enumerateArg, currentCount)
+	}
+	if suffixArg != "" {
+		newName = newName + suffixArg
+	}
+	if prefixArg != "" {
+		newName = prefixArg + newName
+	}
+	newName = filepath.Join(path, newName+ext)
+
+	// Check to see if the renamed file exists.  If it does, what
+	// we do next depends on whether or not the force flag is applied
+	_, fileInfoErr := os.Lstat(newName)
+	if fileInfoErr == nil && forceArg == false { // file does exist & force is not set
+		fmt.Fprintf(os.Stderr, "File %s already exists, not copying/renaming. Use --force to override\n", newName)
+		return 0, nil
+	}
+
+	// Copy/Rename the file
+	if copyArg == true {
+		outputMsg = fmt.Sprintf("Copying %s to %s...\n", name, newName)
+	} else {
+		outputMsg = fmt.Sprintf("Renaming %s to %s...\n", name, newName)
+	}
+	fmt.Fprintf(os.Stdout, outputMsg)
+
+	if dryrunArg == true {
+		return 0, nil
+	} else {
+		if copyArg == true {
+
+			copyFile, openFileErr := os.Open(newName)
+			if openFileErr != nil {
+				return 0, openFileErr
+			}
+			srcFile, openFileErr := os.Open(name)
+			if openFileErr != nil {
+				return 0, openFileErr
+			}
+			io.Copy(copyFile, srcFile)
+			return 1, nil
+
+		} else {
+
+			if rename_err := os.Rename(name, newName); rename_err != nil {
+				return 0, rename_err
+			}
+			return 1, nil
+		}
+	}
+
+}
 
 func main() {
 
@@ -218,6 +337,23 @@ func main() {
 	fmt.Fprintf(os.Stdout, "upperArg: %b\n", upperArg)
 	fmt.Fprintf(os.Stdout, "dryrunArg: %b\n", dryrunArg)
 
-	processFiles()
+	// Compile the passed regex, if any
+	if regexArg != "" {
+		var err error
+		fileRegex, err = regexp.Compile(regexArg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid regex: %s\n", regexArg)
+			fmt.Fprintf(os.Stderr, "Cannot continue, quitting...")
+			os.Exit(1)
+		}
+	}
+
+	fCount, err := processFiles()
+
+	if err == nil {
+		fmt.Fprintf(os.Stdout, "\nOperation complete: %d files renamed/copied\n", fCount)
+	} else {
+		fmt.Fprintf(os.Stdout, "\nOperation could not be completed: %s\n", err.Error())
+	}
 
 }
