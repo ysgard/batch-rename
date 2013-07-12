@@ -262,6 +262,15 @@ func processFile(name string, currentCount int) (int, error) {
 	if prefixArg != "" {
 		newName = prefixArg + newName
 	}
+
+	// Uppercase/lowercase if the user requested it
+	if upperArg == true {
+		newName = strings.ToUpper(newName)
+	}
+	if lowerArg == true {
+		newName = strings.ToLower(newName)
+	}
+
 	newName = filepath.Join(path, newName+ext)
 
 	// Check to see if the renamed file exists.  If it does, what
